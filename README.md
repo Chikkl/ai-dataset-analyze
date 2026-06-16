@@ -5,11 +5,13 @@
 ## Возможности
 
 - 📊 Загрузка датасетов (CSV, Excel, TSV, JSON, Parquet)
-- 🤖 LLM-агент самостоятельно проводит анализ данных через выполнение Python-кода
+- 🤖 LLM-агент самостоятельно проводит анализ данных через выполнение Python-кода (tool use / function calling)
 - 📈 Генерация графиков (matplotlib/seaborn) для визуализации результатов
 - 📝 Детальный отчёт с ключевыми метриками, инсайтами и рекомендациями
 - 🔒 Защита от prompt-injection
 - 🧠 Возможность задать инструкции для анализа
+- 🐳 Готовый Dockerfile для деплоя
+- 📦 Использует **uv** для управления зависимостями (быстрая альтернатива pip)
 
 ## Как это работает
 
@@ -21,52 +23,66 @@
 6. Цикл повторяется до получения полного отчёта
 7. Пользователь получает отчёт и графики
 
-## Установка и запуск
+## Быстрый старт
 
-### 1. Клонирование
+### Способ 1: через uv (рекомендуется)
+
+```bash
+# 1. Установите uv (если ещё не установлен)
+# curl -LsSf https://astral.sh/uv/install.sh | sh   # Linux/macOS
+# powershell -c "irm https://astral.sh/uv/install.ps1 | iex"   # Windows
+
+# 2. Клонируйте репозиторий
+git clone <repo-url>
+cd lab_3_analytics
+
+# 3. Создайте .env и укажите API-ключ
+cp .env.example .env
+# Отредактируйте .env: LLM_API_KEY=sk-...
+
+# 4. Установите зависимости (uv сам создаст виртуальное окружение)
+uv sync
+
+# 5. Активируйте окружение
+# source .venv/bin/activate   # Linux/macOS
+# .venv\Scripts\activate      # Windows
+
+# 6. Запустите
+uvicorn app.main:app --reload
+```
+
+Приложение будет доступно: http://localhost:8000
+
+### Способ 2: через pip
 
 ```bash
 git clone <repo-url>
 cd lab_3_analytics
-```
 
-### 2. Установка зависимостей
-
-```bash
-pip install -r requirements.txt
-# или
-uv sync
-```
-
-### 3. Настройка API ключа
-
-Скопируйте `.env.example` в `.env` и укажите ваш API ключ:
-
-```bash
 cp .env.example .env
+# Отредактируйте .env
+
+pip install -e .
+uvicorn app.main:app --reload
 ```
 
-Редактируем `.env`:
-
-```env
-LLM_API_URL=https://api.openai.com/v1/chat/completions
-LLM_API_KEY=sk-your-api-key-here
-LLM_MODEL=gpt-4o-mini
-LLM_TEMPERATURE=0.1
-LLM_MAX_TOKENS=4096
-HOST=0.0.0.0
-PORT=8000
-```
-
-### 4. Запуск
+### Способ 3: через Docker
 
 ```bash
-python -m app.main
-# или
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# 1. Соберите образ
+docker build -t llm-analytics-agent .
+
+# 2. Запустите контейнер (укажите ваш API-ключ)
+docker run -p 8000:8000 \
+  -e LLM_API_KEY=sk-your-api-key-here \
+  -e LLM_MODEL=gpt-4o-mini \
+  llm-analytics-agent
+
+# Или с файлом .env
+docker run -p 8000:8000 --env-file .env llm-analytics-agent
 ```
 
-Приложение будет доступно по адресу: http://localhost:8000
+Приложение будет доступно: http://localhost:8000
 
 ## Использование
 
@@ -83,24 +99,48 @@ lab_3_analytics/
 ├── app/
 │   ├── __init__.py
 │   ├── agent.py           # LLM-агент + песочница для кода
-│   ├── config.py          # Конфигурация
+│   ├── config.py          # Конфигурация из .env
 │   ├── main.py            # FastAPI приложение
 │   └── templates/
-│       ├── index.html     # Главная страница
-│       └── result.html    # Страница результатов
+│       ├── index.html     # Главная страница с загрузкой
+│       └── result.html    # Страница с отчётом и графиками
 ├── data/
 │   ├── uploads/           # Загруженные датасеты
 │   └── output/            # Результаты и графики
+├── .env                   # Файл с настройками (НЕ коммитить!)
 ├── .env.example           # Пример конфигурации
 ├── .gitignore
-├── pyproject.toml
-└── README.md
+├── Dockerfile             # Контейнеризация
+├── pyproject.toml         # Зависимости проекта
+├── README.md
+└── uv.lock                # Lock-файл для воспроизводимости
 ```
+
+## Развёртывание
+
+### Локально (для разработки)
+```bash
+uv sync
+uvicorn app.main:app --reload
+```
+
+### Docker (для production)
+```bash
+docker build -t llm-analytics-agent .
+docker run -d -p 8000:8000 --env-file .env llm-analytics-agent
+```
+
+### Бесплатные хостинги
+- **Render.com** — Docker-деплой из Git-репозитория
+- **Railway.app** — автодеплой по Dockerfile
+- **Hugging Face Spaces** — поддерживает FastAPI
+- **fly.io** — бесплатный лимит для тестов
 
 ## Требования
 
 - Python >= 3.10
-- API ключ OpenAI (или совместимого API)
+- API ключ OpenAI (или совместимого API: DeepSeek, Qwen, LM Studio)
+- **uv** (рекомендуется) или pip
 
 ## Критерии оценки (5 баллов)
 
@@ -109,3 +149,5 @@ lab_3_analytics/
 - ✅ Возможность задать инструкции для анализа
 - ✅ Веб-интерфейс для взаимодействия
 - ✅ Генерация отчёта и графиков
+- ✅ Dockerfile для простого деплоя
+- ✅ uv для быстрой и воспроизводимой установки
