@@ -1,4 +1,4 @@
-"""Telegram-бот для анализа данных с помощью LLM-агента."""
+"""Telegram-бот для анализа данных."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import logging
 import os
 import uuid
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -18,14 +18,11 @@ from app.config import config
 
 logger = logging.getLogger(__name__)
 
-# ---------- хранилище сессий ----------
-
-sessions: Dict[str, Dict] = {}
+sessions: Dict[str, Dict[str, Any]] = {}
 USER_SESSION_MAP: Dict[int, str] = {}
 
 
 def get_agent(session_id: str) -> LLMAnalyticsAgent:
-    """Получить или создать агента для сессии."""
     if session_id not in sessions:
         charts_dir = config.output_dir / session_id / "charts"
         charts_dir.mkdir(parents=True, exist_ok=True)
@@ -44,50 +41,34 @@ def get_agent(session_id: str) -> LLMAnalyticsAgent:
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик команды /start."""
     await update.message.reply_text(
-        "🤖 <b>LLM Analytics Agent</b>\n\n"
-        "Привет! Я AI-агент для анализа данных.\n\n"
-        "📤 <b>Отправь мне CSV или Excel файл</b> — я проведу полный анализ:\n"
-        "• Загрузка и очистка данных\n"
-        "• Разведочный анализ (EDA)\n"
-        "• Статистические метрики\n"
-        "• Графики и визуализации\n"
-        "• Выводы и инсайты\n\n"
-        "Также ты можешь написать <b>инструкции</b> в подписи к файлу — "
-        "на что обратить внимание.\n\n"
-        "Поддерживаемые форматы: <code>.csv</code>, <code>.xls</code>, <code>.xlsx</code>, "
+        "🤖 <b>LLM Analytics</b>\n\n"
+        "Отправь CSV/Excel файл для анализа данных.\n\n"
+        "Подпись к файлу = инструкции для агента.\n"
+        "Форматы: <code>.csv</code>, <code>.xls</code>, <code>.xlsx</code>, "
         "<code>.tsv</code>, <code>.json</code>, <code>.parquet</code>",
         parse_mode="HTML",
     )
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик загруженного файла."""
     user_id = update.effective_user.id
     document = update.message.document
     file_name = document.file_name or "dataset.csv"
 
-    # Проверка расширения
     allowed_extensions = {".csv", ".xls", ".xlsx", ".tsv", ".json", ".parquet"}
     ext = Path(file_name).suffix.lower()
     if ext not in allowed_extensions:
         await update.message.reply_text(
-            f"❌ Неподдерживаемый формат: <code>{ext}</code>\n"
-            f"Допустимые: {', '.join(allowed_extensions)}",
+            f"Unsupported format: <code>{ext}</code>",
             parse_mode="HTML",
         )
         return
 
-    # Получаем инструкции из подписи к файлу
     instructions = update.message.caption or ""
 
-    await update.message.reply_text(
-        "📥 Файл получен! Запускаю анализ...\n"
-        "⏳ Это может занять до 1-2 минут.",
-    )
+    await update.message.reply_text("📥 Processing...")
 
-    # Скачиваем файл
     session_id = str(uuid.uuid4())
     USER_SESSION_MAP[user_id] = session_id
 
@@ -99,11 +80,10 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         file = await document.get_file()
         await file.download_to_drive(str(file_path))
     except Exception as e:
-        logger.exception("Ошибка при скачивании файла")
-        await update.message.reply_text(f"❌ Ошибка при скачивании файла: {str(e)}")
+        logger.exception("Download error")
+        await update.message.reply_text(f"Error: {e}")
         return
 
-    # Запускаем агента
     agent = get_agent(session_id)
     sessions[session_id]["dataset_path"] = file_path
 
@@ -113,30 +93,21 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             user_instructions=instructions,
         )
     except Exception as e:
-        logger.exception("Ошибка при анализе данных")
-        await update.message.reply_text(
-            f"❌ Ошибка при анализе данных: {str(e)[:200]}"
-        )
+        logger.exception("Analysis error")
+        await update.message.reply_text(f"Analysis error: {e}")
         return
 
-    # Форматируем отчёт
     report = result["report"]
     if len(report) > 4000:
-        report = report[:4000] + "\n\n... (отчёт обрезан)"
+        report = report[:4000] + "\n..."
 
-    # Отправляем отчёт
     await update.message.reply_text(
-        f"📊 <b>Анализ завершён!</b>\n"
-        f"Файл: {file_name}\n"
-        f"Итераций агента: {result['iterations']}\n\n"
-        f"{report}",
+        f"📊 Done — {file_name}\nIterations: {result['iterations']}\n\n{report}",
         parse_mode="HTML",
     )
 
-    # Отправляем графики (если есть)
     charts = result["charts"]
     if charts:
-        await update.message.reply_text("📈 <b>Сгенерированные графики:</b>", parse_mode="HTML")
         for chart in charts:
             try:
                 chart_bytes = base64.b64decode(chart["data"])
@@ -145,11 +116,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     filename=chart["filename"],
                 )
             except Exception as e:
-                logger.warning("Не удалось отправить график %s: %s", chart["filename"], e)
-    else:
-        await update.message.reply_text("📉 Графики не были сгенерированы.")
+                logger.warning("Chart error %s: %s", chart["filename"], e)
 
-    # Очищаем сессию
     agent.cleanup()
     if session_id in sessions:
         del sessions[session_id]
@@ -158,43 +126,32 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик команды /help."""
     await update.message.reply_text(
-        "ℹ️ <b>Как пользоваться ботом:</b>\n\n"
-        "1. Отправь CSV или Excel файл\n"
-        "2. Опционально добавь подпись с инструкциями\n"
-        "3. Дождись анализа (1-2 минуты)\n"
-        "4. Получи отчёт и графики\n\n"
-        "<b>Пример подписи к файлу:</b>\n"
-        "<code>Обрати внимание на сезонность продаж, "
-        "построй прогноз на следующий период</code>",
-        parse_mode="HTML",
+        "1. Send CSV/Excel file\n"
+        "2. Optional caption = analysis instructions\n"
+        "3. Wait 1-2 min → report + charts"
     )
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик ошибок."""
-    logger.error("Ошибка в боте: %s", context.error)
+    logger.error("Bot error: %s", context.error)
 
 
 def run() -> None:
-    """Запуск Telegram-бота."""
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not token:
-        token = input("Введите TELEGRAM_BOT_TOKEN: ").strip()
+        token = input("TELEGRAM_BOT_TOKEN: ").strip()
     if not token:
-        logger.error("TELEGRAM_BOT_TOKEN не указан")
+        logger.error("No TELEGRAM_BOT_TOKEN")
         return
 
     app = Application.builder().token(token).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
-
     app.add_error_handler(error_handler)
 
-    logger.info("Telegram-бот запущен...")
+    logger.info("Bot started")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
