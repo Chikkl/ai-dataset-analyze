@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты анализа — LLM Analytics Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f7fb;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 30px 40px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .header h1 {
+            font-size: 1.5em;
+        }
+        .header .meta {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .header .btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+        .header .btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .report-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            white-space: pre-wrap;
+            line-height: 1.7;
+            font-size: 1em;
+            color: #333;
+        }
+        .report-card h1, .report-card h2, .report-card h3, .report-card h4 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            color: #333;
+        }
+        .report-card h1 { font-size: 1.6em; }
+        .report-card h2 { font-size: 1.3em; }
+        .report-card h3 { font-size: 1.1em; }
+        .report-card p { margin-bottom: 1em; }
+        .report-card ul, .report-card ol { margin-bottom: 1em; padding-left: 1.5em; }
+        .report-card code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .report-card pre {
+            background: #f8f8f8;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-x: auto;
+            margin-bottom: 1em;
+        }
+        .charts-section {
+            margin-bottom: 30px;
+        }
+        .charts-section h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .chart-card h3 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1em;
+        }
+        .chart-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .actions .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            padding: 14px 32px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .no-charts {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+        }
+        @media (max-width: 600px) {
+            .header { padding: 20px; }
+            .report-card { padding: 20px; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>📊 Анализ завершён</h1>
+                <div class="meta">
+                    Файл: {{ filename }} • 
+                    Итераций агента: {{ iterations }}
+                </div>
+            </div>
+            <a href="/" class="btn">🏠 Новый анализ</a>
+        </div>
+
+        <div class="report-card">
+            {{ report }}
+        </div>
+
+        {% if charts %}
+        <div class="charts-section">
+            <h2>📈 Сгенерированные графики</h2>
+            <div class="charts-grid">
+                {% for chart in charts %}
+                <div class="chart-card">
+                    <h3>{{ chart.filename }}</h3>
+                    <img src="data:image/png;base64,{{ chart.data }}" alt="{{ chart.filename }}">
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="no-charts">
+            <p>📉 Графики не были сгенерированы</p>
+        </div>
+        {% endif %}
+
+        <div class="actions">
+            <a href="/" class="btn">🚀 Загрузить другой датасет</a>
+        </div>
+    </div>
+</body>
+</html>

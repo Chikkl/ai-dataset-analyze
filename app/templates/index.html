@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Analytics Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        .upload-area .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .upload-area .text {
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .upload-area .hint {
+            color: #999;
+            font-size: 0.9em;
+        }
+        .upload-area input[type="file"] {
+            display: none;
+        }
+        .upload-area.has-file {
+            border-color: #4CAF50;
+            background: #f0faf0;
+        }
+        .file-name {
+            color: #4CAF50;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 8px;
+        }
+        textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading.active {
+            display: block;
+        }
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: #666;
+            margin-top: 10px;
+        }
+        .error {
+            background: #fff0f0;
+            border: 1px solid #ffcccc;
+            border-radius: 10px;
+            padding: 15px;
+            color: #cc0000;
+            margin-top: 15px;
+            display: none;
+        }
+        .error.active {
+            display: block;
+        }
+        .info {
+            background: #f0f8ff;
+            border: 1px solid #cce5ff;
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: #0066cc;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 LLM Analytics Agent</h1>
+        <p class="subtitle">Загрузите датасет — ИИ-агент проведёт полный анализ данных</p>
+
+        <div class="info">
+            📊 Поддерживаемые форматы: CSV, Excel (.xls/.xlsx), TSV, JSON, Parquet<br>
+            ⚡ Максимальный размер файла: 50 MB<br>
+            🤖 Агент самостоятельно выполнит Python-код для анализа и построит графики
+        </div>
+
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+            <div class="upload-area" id="uploadArea">
+                <div class="icon">📁</div>
+                <div class="text">Нажмите или перетащите файл сюда</div>
+                <div class="hint">CSV, Excel, TSV, JSON, Parquet</div>
+                <div class="file-name" id="fileName"></div>
+                <input type="file" name="file" id="fileInput" accept=".csv,.xls,.xlsx,.tsv,.json,.parquet" required>
+            </div>
+
+            <div class="form-group">
+                <label for="instructions">Инструкции для анализа (необязательно)</label>
+                <textarea name="instructions" id="instructions" 
+                    placeholder="На что обратить внимание? Например: &#10;— Проанализируй сезонность продаж&#10;— Найди аномалии в данных&#10;— Построй прогноз на следующий период"></textarea>
+            </div>
+
+            <button type="submit" id="submitBtn">🚀 Запустить анализ</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p class="loading-text">🤖 ИИ-агент анализирует данные...</p>
+            <p class="loading-text" style="font-size:0.85em; color:#999;">Это может занять до 2-3 минут</p>
+        </div>
+
+        <div class="error" id="error"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const form = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileInfo();
+            }
+        });
+
+        fileInput.addEventListener('change', updateFileInfo);
+
+        function updateFileInfo() {
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                fileName.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+                uploadArea.classList.add('has-file');
+            } else {
+                fileName.textContent = '';
+                uploadArea.classList.remove('has-file');
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            error.classList.remove('active');
+            
+            if (!fileInput.files.length) {
+                showError('Пожалуйста, выберите файл');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            loading.classList.add('active');
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Ошибка при анализе');
+                }
+
+                const html = await response.text();
+                document.open();
+                document.write(html);
+                document.close();
+            } catch (err) {
+                showError(err.message);
+                submitBtn.disabled = false;
+                loading.classList.remove('active');
+            }
+        });
+
+        function showError(msg) {
+            error.textContent = '❌ ' + msg;
+            error.classList.add('active');
+        }
+    </script>
+</body>
+</html>
