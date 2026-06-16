@@ -47,11 +47,11 @@ uv sync
 # source .venv/bin/activate   # Linux/macOS
 # .venv\Scripts\activate      # Windows
 
-# 6. Запустите
+# 6. Запустите веб-интерфейс
 uvicorn app.main:app --reload
+# Или Telegram-бота:
+python -m app.bot
 ```
-
-Приложение будет доступно: http://localhost:8000
 
 ### Способ 2: через pip
 
@@ -60,37 +60,41 @@ git clone <repo-url>
 cd lab_3_analytics
 
 cp .env.example .env
-# Отредактируйте .env
+# Отредактируйте .env: LLM_API_KEY и TELEGRAM_BOT_TOKEN
 
 pip install -e .
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload  # веб-интерфейс
+# python -m app.bot            # Telegram-бот
 ```
 
 ### Способ 3: через Docker
 
 ```bash
-# 1. Соберите образ
+# Соберите образ
 docker build -t llm-analytics-agent .
 
-# 2. Запустите контейнер (укажите ваш API-ключ)
-docker run -p 8000:8000 \
-  -e LLM_API_KEY=sk-your-api-key-here \
-  -e LLM_MODEL=gpt-4o-mini \
-  llm-analytics-agent
-
-# Или с файлом .env
+# Веб-интерфейс:
 docker run -p 8000:8000 --env-file .env llm-analytics-agent
+
+# Telegram-бот (переопределяем команду):
+docker run --env-file .env llm-analytics-agent python -m app.bot
 ```
 
-Приложение будет доступно: http://localhost:8000
+## 🎮 Использование
 
-## Использование
-
-1. Откройте браузер по адресу http://localhost:8000
+### Веб-интерфейс
+1. Откройте http://localhost:8000
 2. Загрузите датасет (CSV/Excel/TSV/JSON/Parquet)
 3. Опционально укажите инструкции для анализа
 4. Нажмите "Запустить анализ"
 5. Дождитесь завершения — агент выполнит анализ и покажет отчёт
+
+### Telegram-бот
+1. Найдите бота в Telegram (@YourBotName)
+2. Отправьте команду `/start`
+3. Отправьте CSV/Excel файл
+4. Опционально добавьте подпись с инструкциями
+5. Получите отчёт и графики
 
 ## Структура проекта
 
