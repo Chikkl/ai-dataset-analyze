@@ -16,13 +16,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Копируем только файлы зависимостей (кэширование слоёв Docker)
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 
 # Устанавливаем uv
 RUN pip install uv
 
 # Устанавливаем зависимости проекта через uv (без дев-зависимостей)
-RUN uv sync --frozen --no-dev
+RUN uv sync --no-dev
 
 # Копируем исходный код приложения
 COPY app/ ./app/
@@ -33,9 +33,8 @@ RUN mkdir -p data/uploads data/output
 # Порт, на котором работает приложение
 EXPOSE 8000
 
-# Переменные окружения по умолчанию (можно переопределить при запуске)
+# Переменные окружения по умолчанию (переопределяются через --env-file)
 ENV LLM_API_URL=https://api.openai.com/v1/chat/completions
-ENV LLM_API_KEY=sk-your-api-key-here
 ENV LLM_MODEL=gpt-4o-mini
 ENV LLM_TEMPERATURE=0.1
 ENV LLM_MAX_TOKENS=4096
