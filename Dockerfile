@@ -42,5 +42,6 @@ ENV HOST=0.0.0.0
 ENV PORT=8000
 ENV MAX_UPLOAD_SIZE_MB=50
 
-# Запускаем приложение через uvicorn (без reload в production)
+# Активируем .venv и запускаем uvicorn
+ENV PATH="/app/.venv/bin:$PATH"
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
